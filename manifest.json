@@ -1,0 +1,17 @@
+{
+  "name": "Great Falls TrailAid",
+  "short_name": "TrailAid",
+  "description": "Trailside first-aid prompts and a 911 dispatch script for emergencies on the Potomac at Great Falls. Works offline.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "categories": ["health", "medical", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

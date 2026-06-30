@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#0b1220;color:#f1f5f9">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1220" />
+  <meta name="description" content="Trailside first-aid prompts and a 911 dispatch script for emergencies on the Potomac trails at Great Falls. Works offline." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TrailAid" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23dc2626'/%3E%3Cpath d='M27 14h10v13h13v10H37v13H27V37H14V27h13z' fill='%23fff'/%3E%3C/svg%3E" />
+  <title>Great Falls TrailAid — Trail Emergency First Aid</title>
+
+  <!-- Requested stack: Tailwind (Play CDN) for utility styling. -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!--
+    Offline-first safety net: the app is fully usable and legible even if the
+    Tailwind CDN is blocked or the trail has no signal on first load. These rules
+    sit at base/element/ID specificity so Tailwind utilities override them when present.
+  -->
+  <style>
+    :root{
+      --ink:#0b1220; --surface:#111c2e; --surface-2:#0e1726; --line:#23324a;
+      --text:#f1f5f9; --muted:#94a3b8;
+      --danger:#dc2626; --danger-2:#ef4444;
+      --amber:#f59e0b; --amber-2:#fbbf24;
+      --go:#16a34a; --go-2:#22c55e;
+      --water:#0ea5e9; --bone:#8b5cf6;
+      --safe-top:env(safe-area-inset-top,0px);
+      --safe-bottom:env(safe-area-inset-bottom,0px);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      background:var(--ink); color:var(--text);
+      font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+      -webkit-text-size-adjust:100%; line-height:1.45;
+      min-height:100dvh;
+    }
+    /* Telemetry / data readouts get a monospaced "field instrument" voice */
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+    .ttl{letter-spacing:.06em}
+    /* Base fallbacks for critical components (overridden by Tailwind when loaded) */
+    #grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    @media(min-width:560px){#grid{grid-template-columns:repeat(3,1fr)}}
+    button{font-family:inherit;cursor:pointer}
+    .tap{min-height:48px}
+    a{color:inherit}
+    /* Visible keyboard focus everywhere */
+    :focus-visible{outline:3px solid #fde047;outline-offset:2px;border-radius:10px}
+    /* Live GPS dot */
+    .pulse-dot{width:9px;height:9px;border-radius:999px;background:var(--go-2);display:inline-block;
+      box-shadow:0 0 0 0 rgba(34,197,94,.7);animation:pulse 1.8s infinite}
+    @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}70%{box-shadow:0 0 0 9px rgba(34,197,94,0)}100%{box-shadow:0 0 0 0 rgba(34,197,94,0)}}
+    .beat{animation:beat .9s ease-in-out infinite}
+    @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+    .metro-on{animation:flash .545s steps(1) infinite}
+    @keyframes flash{0%{background:var(--danger-2)}50%{background:#3a1010}100%{background:var(--danger-2)}}
+    .view-enter{animation:slideup .22s ease-out}
+    @keyframes slideup{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .toast{animation:toastin .18s ease-out}
+    @keyframes toastin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    /* Tidy scrollbars */
+    ::-webkit-scrollbar{width:10px;height:10px}
+    ::-webkit-scrollbar-thumb{background:#2a3a55;border-radius:8px}
+    @media(prefers-reduced-motion:reduce){
+      *{animation:none!important;transition:none!important}
+    }
+  
+    /* ===== FALLBACK UTILITIES — used only if the Tailwind CDN is unavailable; Tailwind overrides these at runtime ===== */
+    .block{display:block}
+    .inline-block{display:inline-block}
+    .inline-flex{display:inline-flex}
+    .flex{display:flex}
+    .grid{display:grid}
+    .hidden{display:none}
+    .relative{position:relative}
+    .fixed{position:fixed}
+    .sticky{position:sticky}
+    .top-0{top:0}
+    .bottom-6{bottom:1.5rem}
+    .left-1\/2{left:50%}
+    .z-40{z-index:40}
+    .z-50{z-index:50}
+    .overflow-hidden{overflow:hidden}
+    .shrink-0{flex-shrink:0}
+    .flex-1{flex:1 1 0%}
+    .flex-col{flex-direction:column}
+    .flex-wrap{flex-wrap:wrap}
+    .items-center{align-items:center}
+    .items-start{align-items:flex-start}
+    .justify-between{justify-content:space-between}
+    .justify-center{justify-content:center}
+    .place-items-center{place-items:center}
+    .ml-auto{margin-left:auto}
+    .mt-auto{margin-top:auto}
+    .min-w-0{min-width:0}
+    .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .whitespace-pre-wrap{white-space:pre-wrap}
+    .antialiased{-webkit-font-smoothing:antialiased}
+    .backdrop-blur{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+    .-translate-x-1\/2{transform:translateX(-50%)}
+    .transition{transition:all .15s ease}
+    .max-w-2xl{max-width:42rem}
+    .min-h-\[100dvh\]{min-height:100dvh}
+    .min-h-\[122px\]{min-height:122px}
+    .w-full{width:100%}
+    .h-2\.5{height:.625rem}
+    .w-2\.5{width:.625rem}
+    .h-6{height:1.5rem}
+    .w-6{width:1.5rem}
+    .h-7{height:1.75rem}
+    .w-7{width:1.75rem}
+    .h-9{height:2.25rem}
+    .w-9{width:2.25rem}
+    .h-11{height:2.75rem}
+    .w-11{width:2.75rem}
+    .h-12{height:3rem}
+    .w-12{width:3rem}
+    .p-3\.5{padding:.875rem}
+    .p-4{padding:1rem}
+    .px-2\.5{padding-left:.625rem;padding-right:.625rem}
+    .px-3{padding-left:.75rem;padding-right:.75rem}
+    .px-3\.5{padding-left:.875rem;padding-right:.875rem}
+    .px-4{padding-left:1rem;padding-right:1rem}
+    .py-1\.5{padding-top:.375rem;padding-bottom:.375rem}
+    .py-2{padding-top:.5rem;padding-bottom:.5rem}
+    .py-2\.5{padding-top:.625rem;padding-bottom:.625rem}
+    .py-3{padding-top:.75rem;padding-bottom:.75rem}
+    .py-3\.5{padding-top:.875rem;padding-bottom:.875rem}
+    .py-4{padding-top:1rem;padding-bottom:1rem}
+    .pt-1\.5{padding-top:.375rem}
+    .pt-2\.5{padding-top:.625rem}
+    .pt-3{padding-top:.75rem}
+    .pt-3\.5{padding-top:.875rem}
+    .pt-4{padding-top:1rem}
+    .pt-5{padding-top:1.25rem}
+    .pb-2{padding-bottom:.5rem}
+    .pb-3{padding-bottom:.75rem}
+    .pb-28{padding-bottom:7rem}
+    .mb-1{margin-bottom:.25rem}
+    .mb-1\.5{margin-bottom:.375rem}
+    .mb-2{margin-bottom:.5rem}
+    .mb-3{margin-bottom:.75rem}
+    .mt-0\.5{margin-top:.125rem}
+    .-mt-0\.5{margin-top:-.125rem}
+    .mt-1{margin-top:.25rem}
+    .mt-2{margin-top:.5rem}
+    .mt-3{margin-top:.75rem}
+    .mt-4{margin-top:1rem}
+    .mt-5{margin-top:1.25rem}
+    .mt-10{margin-top:2.5rem}
+    .mx-auto{margin-left:auto;margin-right:auto}
+    .gap-1\.5{gap:.375rem}
+    .gap-2{gap:.5rem}
+    .gap-3{gap:.75rem}
+    .rounded-md{border-radius:.375rem}
+    .rounded-lg{border-radius:.5rem}
+    .rounded-xl{border-radius:.75rem}
+    .rounded-2xl{border-radius:1rem}
+    .rounded-full{border-radius:9999px}
+    .border{border-width:1px;border-style:solid}
+    .border-b{border-bottom-width:1px;border-bottom-style:solid}
+    .border-t{border-top-width:1px;border-top-style:solid}
+    .border-\[\#23324a\]{border-color:#23324a}
+    .border-\[\#2a3a55\]{border-color:#2a3a55}
+    .border-amber-600\/50{border-color:rgba(217,119,6,.5)}
+    .border-emerald-700\/40{border-color:rgba(4,120,87,.4)}
+    .border-red-700\/50{border-color:rgba(185,28,28,.5)}
+    .bg-\[\#0a1322\]{background-color:#0a1322}
+    .bg-\[\#0b1220\]{background-color:#0b1220}
+    .bg-\[\#0b1220\]\/95{background-color:rgba(11,18,32,.95)}
+    .bg-\[\#0e1726\]{background-color:#0e1726}
+    .bg-\[\#111c2e\]{background-color:#111c2e}
+    .bg-\[\#3a1010\]{background-color:#3a1010}
+    .bg-amber-400{background-color:#fbbf24}
+    .bg-amber-500{background-color:#f59e0b}
+    .bg-amber-950\/20{background-color:rgba(69,26,3,.2)}
+    .bg-emerald-600{background-color:#059669}
+    .bg-emerald-950\/20{background-color:rgba(2,44,34,.2)}
+    .bg-red-600{background-color:#dc2626}
+    .bg-red-950\/25{background-color:rgba(69,10,10,.25)}
+    .bg-sky-600{background-color:#0284c7}
+    .bg-violet-600{background-color:#7c3aed}
+    .bg-slate-100{background-color:#f1f5f9}
+    .bg-slate-500{background-color:#64748b}
+    .bg-red-500\/15{background-color:rgba(239,68,68,.15)}
+    .bg-amber-400\/15{background-color:rgba(251,191,36,.15)}
+    .bg-emerald-500\/15{background-color:rgba(16,185,129,.15)}
+    .bg-sky-500\/15{background-color:rgba(14,165,233,.15)}
+    .bg-violet-500\/15{background-color:rgba(139,92,246,.15)}
+    .text-white{color:#fff}
+    .text-white\/90{color:rgba(255,255,255,.9)}
+    .text-white\/95{color:rgba(255,255,255,.95)}
+    .text-slate-100{color:#f1f5f9}
+    .text-slate-200{color:#e2e8f0}
+    .text-slate-300{color:#cbd5e1}
+    .text-slate-400{color:#94a3b8}
+    .text-slate-500{color:#64748b}
+    .text-slate-900{color:#0f172a}
+    .text-red-300{color:#fca5a5}
+    .text-red-400{color:#f87171}
+    .text-emerald-100{color:#d1fae5}
+    .text-emerald-300{color:#6ee7b7}
+    .text-amber-300{color:#fcd34d}
+    .text-amber-50{color:#fffbeb}
+    .text-sky-300{color:#7dd3fc}
+    .text-violet-300{color:#c4b5fd}
+    .font-black{font-weight:900}
+    .font-bold{font-weight:700}
+    .font-semibold{font-weight:600}
+    .text-\[9px\]{font-size:9px}
+    .text-\[10px\]{font-size:10px}
+    .text-\[11px\]{font-size:11px}
+    .text-\[12px\]{font-size:12px}
+    .text-\[13px\]{font-size:13px}
+    .text-\[13\.5px\]{font-size:13.5px}
+    .text-\[14px\]{font-size:14px}
+    .text-\[15px\]{font-size:15px}
+    .text-xs{font-size:.75rem}
+    .text-sm{font-size:.875rem}
+    .text-lg{font-size:1.125rem}
+    .text-2xl{font-size:1.5rem}
+    .text-3xl{font-size:1.875rem}
+    .leading-none{line-height:1}
+    .leading-tight{line-height:1.15}
+    .leading-snug{line-height:1.35}
+    .leading-relaxed{line-height:1.6}
+    .tracking-wide{letter-spacing:.025em}
+    .tracking-\[\.14em\]{letter-spacing:.14em}
+    .uppercase{text-transform:uppercase}
+    .underline{text-decoration:underline}
+    .text-left{text-align:left}
+    .opacity-80{opacity:.8}
+    .shadow{box-shadow:0 1px 2px rgba(0,0,0,.3)}
+    .shadow-lg{box-shadow:0 10px 15px -3px rgba(0,0,0,.45)}
+    .shadow-2xl{box-shadow:0 25px 50px -12px rgba(0,0,0,.6)}
+    .shadow-red-900\/40{box-shadow:0 8px 20px rgba(127,29,29,.4)}
+    .active\:scale-95:active{transform:scale(.95)}
+    .active\:scale-\[\.98\]:active{transform:scale(.98)}
+    .space-y-1>*+*{margin-top:.25rem}
+    .space-y-3>*+*{margin-top:.75rem}
+    .space-y-3\.5>*+*{margin-top:.875rem}
+  </style>
+</head>
+
+<body class="min-h-[100dvh] bg-[#0b1220] text-slate-100 antialiased">
+
+  <!-- ====================== COMMAND BAR (always visible) ====================== -->
+  <header class="sticky top-0 z-40 bg-[#0b1220]/95 backdrop-blur border-b border-[#23324a]"
+          style="padding-top:var(--safe-top)">
+    <div class="mx-auto max-w-2xl px-3 py-2 flex items-center gap-3">
+      <button id="brand" class="flex items-center gap-2 shrink-0" aria-label="Go to emergency list">
+        <span class="grid place-items-center h-9 w-9 rounded-lg bg-red-600 text-white font-black text-lg shadow">+</span>
+        <span class="leading-tight text-left">
+          <span class="block font-black ttl text-[15px] uppercase tracking-wide">TrailAid</span>
+          <span class="block text-[10px] text-slate-400 -mt-0.5">Great Falls · Potomac</span>
+        </span>
+      </button>
+
+      <!-- GPS readout chip -->
+      <button id="gpsChip" class="ml-auto shrink-0 flex items-center gap-2 rounded-lg border border-[#23324a] bg-[#111c2e] px-2.5 py-1.5 text-left tap"
+              aria-label="Get my GPS location">
+        <span id="gpsDotWrap"><span class="inline-block h-2.5 w-2.5 rounded-full bg-slate-500"></span></span>
+        <span class="leading-tight">
+          <span class="block text-[9px] uppercase tracking-wide text-slate-400">My location</span>
+          <span id="gpsChipText" class="block mono text-[11px] text-slate-200">Tap for GPS</span>
+        </span>
+      </button>
+
+      <!-- The single most important control: always reachable -->
+      <a href="tel:911" id="call911"
+         class="shrink-0 flex items-center gap-1.5 rounded-xl bg-red-600 px-3.5 py-2.5 font-black text-white shadow-lg shadow-red-900/40 active:scale-95 transition tap"
+         aria-label="Call 911 now">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.2a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .6 3.6 1 1 0 0 1-.24 1z" fill="currentColor"/></svg>
+        <span class="text-sm leading-none">911</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-2xl px-3 pb-28" style="padding-bottom:calc(7rem + var(--safe-bottom))">
+
+    <!-- ============================ HOME / GRID ============================ -->
+    <section id="home" aria-label="Choose the emergency">
+      <div class="pt-4 pb-3">
+        <h1 class="text-2xl font-black ttl uppercase tracking-wide leading-tight">What's happening?</h1>
+        <p class="text-slate-400 text-sm mt-1">Tap the emergency. You'll get the exact words to tell 911 and the first steps to take.</p>
+      </div>
+
+      <div id="grid" role="list">
+        <!-- cards injected by JS -->
+      </div>
+
+      <!-- Quick orientation banner -->
+      <div class="mt-5 rounded-2xl border border-[#23324a] bg-[#0e1726] p-4">
+        <p class="text-xs uppercase tracking-wide text-slate-400 font-bold mb-1">Before anything else</p>
+        <p class="text-sm text-slate-200">If someone is <span class="font-bold">unresponsive and not breathing normally</span>, or bleeding can't be stopped — <span class="text-red-400 font-bold">call 911 first</span>, then open the matching card. GPS works out here even with no bars.</p>
+      </div>
+    </section>
+
+    <!-- ============================ DETAIL ============================ -->
+    <section id="detail" class="hidden" aria-live="polite"><!-- injected by JS --></section>
+
+    <!-- ============================ FOOTER ============================ -->
+    <footer class="mt-10 border-t border-[#23324a] pt-5 text-[11px] leading-relaxed text-slate-500">
+      <p class="font-bold text-slate-400 uppercase tracking-wide mb-1">Read me</p>
+      <p>TrailAid gives plain first-aid prompts for untrained bystanders. It is <span class="text-slate-300">not</span> a substitute for medical training or professional care. In any emergency, call 911 and follow the dispatcher — they can see help coming and will guide you. When in doubt, make the call.</p>
+      <p class="mt-2">Guidance reflects widely published bystander protocols (AHA Hands-Only CPR, "Stop the Bleed," Wilderness Medical Society heat-illness and snakebite guidance). No agency endorses this demo.</p>
+    </footer>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed left-1/2 -translate-x-1/2 bottom-6 z-50 hidden" style="bottom:calc(1.5rem + var(--safe-bottom))">
+    <div class="toast rounded-xl bg-slate-100 text-slate-900 font-bold px-4 py-2.5 shadow-2xl text-sm"></div>
+  </div>
+
+<script>
+/* =====================================================================
+   GREAT FALLS TRAILAID — all state, data, and logic run client-side.
+   No network needed after first load. No localStorage (kept in memory).
+   ===================================================================== */
+
+/* ---------- 1. MEDICAL CONTENT --------------------------------------
+   Reviewed against current bystander guidance. Each card carries:
+   - the 911 line for that emergency
+   - DO NOW (ordered — sequence matters here)
+   - DO NOT (the counter-intuitive mistakes that get people hurt)
+   - WATCH FOR (signs it's getting worse / escalate)
+   - field tools (timers / pacer) where they genuinely help
+-------------------------------------------------------------------- */
+const EMERGENCIES = {
+  heat: {
+    name: "Heat Stroke",
+    tag: "Cooling is the priority",
+    icon: "🌡️",
+    color: "amber",
+    dispatch: "Their skin is very hot and they were exerting in the heat — this looks like heat stroke.",
+    reassure: "On a hot day this is a true emergency. Aggressive cooling in the first minutes is what saves the brain — cool first, worry about the walk-out second.",
+    doNow: [
+      "Get them into shade or the coolest spot you can reach. Out of the sun, now.",
+      "Cool them fast — this is the #1 priority. If it's safe, get them into cool water (river edge, cooler) while you hold their head up and keep their face out of the water. If you can't immerse them, soak their clothes and skin with water and fan hard.",
+      "Press cold packs, cold drink cans, or wet cloths against the neck, both armpits, and the groin — that's where cooling works fastest.",
+      "If they are fully awake and swallowing normally, give small sips of cool water. Don't force it.",
+      "Strip off extra clothing, packs, and gear.",
+      "Keep cooling until help arrives or they stop being confused and their skin feels cool again."
+    ],
+    doNot: [
+      "Don't give Tylenol, aspirin, or ibuprofen — they don't lower heat-stroke temperature and can cause harm.",
+      "Don't pour fluids into someone who is confused, drowsy, or vomiting — they can choke.",
+      "Don't wait for the ambulance to start cooling. Cooling can't wait.",
+      "Don't leave them alone — heat stroke can turn into seizures or collapse in minutes."
+    ],
+    watchFor: "Seizures, vomiting, becoming impossible to wake, or stopping breathing. If they stop breathing normally, open the CPR card and start compressions.",
+    tools: [
+      { type:"stamp", label:"Cooling started", done:"Cooling since" }
+    ]
+  },
+
+  snake: {
+    name: "Snake Bite",
+    sub: "Copperhead",
+    tag: "Stay calm · no ice · no tourniquet",
+    icon: "🐍",
+    color: "go",
+    dispatch: "They were bitten by a snake we think is a copperhead, and the bite area is swelling.",
+    reassure: "Copperhead bites are painful and cause swelling but are very rarely deadly. The goal is to stay calm, slow the spread, and get to a hospital for evaluation — most of the old 'first aid' tricks make it worse.",
+    doNow: [
+      "Move everyone a safe step back from the snake. Do not try to catch or kill it — a photo from a safe distance is plenty, if it's easy.",
+      "Keep the person calm and as still as possible. Moving pumps venom around faster.",
+      "Take off rings, watches, bracelets, and tight clothing near the bite before swelling sets in.",
+      "Keep the bitten limb still and roughly at heart level, in whatever position is comfortable. Splint it if you can.",
+      "Draw a pen line at the edge of the swelling and write the time. Re-mark every 15–30 min so the hospital can see how fast it's spreading.",
+      "Get to a hospital — copperhead bites are treatable, sometimes with antivenom. Carry them out if you can rather than have them walk."
+    ],
+    doNot: [
+      "Don't apply a tourniquet or any tight band.",
+      "Don't cut the bite or try to suck out venom.",
+      "Don't put ice or cold packs on it.",
+      "Don't wrap it tightly — pressure wraps are for certain other snakes, not copperheads, and here they worsen tissue damage.",
+      "Don't give alcohol, caffeine, or ibuprofen/aspirin (they can worsen bleeding)."
+    ],
+    watchFor: "Fast-spreading swelling, trouble breathing, swelling of the lips or tongue, fainting, or a full-body rash — these can mean a severe or allergic reaction.",
+    tools: [
+      { type:"log", label:"Mark swelling edge", done:"Marks logged" }
+    ]
+  },
+
+  bleeding: {
+    name: "Severe Bleeding",
+    tag: "Press hard · don't let up",
+    icon: "🩸",
+    color: "danger",
+    dispatch: "They are bleeding heavily and I am pressing hard on the wound.",
+    reassure: "Hard, direct, unrelenting pressure stops most bleeding. For a limb that won't stop, a tourniquet is the right call — and it's meant to hurt.",
+    doNow: [
+      "Press hard directly on the wound with both hands using a clean cloth, shirt, or gauze. Lean your weight in. Don't ease off.",
+      "If blood soaks through, don't remove the cloth — pile more on top and keep pressing.",
+      "Arm or leg still bleeding badly? Put a tourniquet 2–3 inches above the wound (between the wound and the heart), tighten until bleeding stops, and note the time. It will hurt — that means it's working.",
+      "For the groin, armpit, neck, or shoulder where a tourniquet won't fit, pack the wound tightly with cloth/gauze and press down firmly.",
+      "Lay them down, keep them warm, and reassure them.",
+      "Leave anything stuck in the wound where it is — press around it, not on it."
+    ],
+    doNot: [
+      "Don't keep lifting the cloth to peek — every peek restarts the bleeding.",
+      "Don't loosen or take off a tourniquet once it's on. Leave it for EMS.",
+      "Don't rinse out or poke into a deep wound.",
+      "Don't give food or drink — they may need surgery."
+    ],
+    watchFor: "Pale, cold, clammy skin, confusion, fast breathing, or fainting — these mean dangerous blood loss (shock). Keep pressure on and keep them flat and warm.",
+    tools: [
+      { type:"stamp", label:"Tourniquet applied", done:"Tourniquet on since", warn:true }
+    ]
+  },
+
+  fracture: {
+    name: "Fracture / Fall",
+    tag: "Don't move a possible spine injury",
+    icon: "🦴",
+    color: "bone",
+    dispatch: "They had a fall and I think a bone is broken; there may also be a head or back injury.",
+    reassure: "Splint it where it lies and protect the neck. After a fall on the rocks, assume a spine injury could be present until help can rule it out.",
+    doNow: [
+      "Check the ground is safe before you reach them — loose rock, drop-offs, water.",
+      "If they may have hurt their head, neck, or back, tell them to stay still and don't move them unless they're in danger (water, falling rock). Steady their head in the position you found it.",
+      "Stop any bleeding with direct pressure.",
+      "Don't straighten a bent or broken limb. Support and pad it in the position you found it — use a splint, clothing, or trekking poles.",
+      "For a closed injury (skin not broken), a cold pack wrapped in cloth helps swelling.",
+      "For an open fracture (bone through skin), cover it with a clean dressing — do not push the bone back in.",
+      "Keep them warm and still. Check that fingers/toes past the injury stay warm and pink, and loosen anything too tight."
+    ],
+    doNot: [
+      "Don't move someone with a suspected neck or back injury unless their life is in danger.",
+      "Don't try to realign or 'pop back' a broken or dislocated limb.",
+      "Don't give food or drink — surgery may be needed.",
+      "Don't put ice directly on bare skin or onto an open wound."
+    ],
+    watchFor: "Numbness, or a cold/blue/pale hand or foot below the injury, means blood flow is cut off — loosen splints and tell 911 right away. Watch also for shock (pale, clammy, confused).",
+    tools: [
+      { type:"stamp", label:"Limb splinted / immobilized", done:"Splinted at" }
+    ]
+  },
+
+  cpr: {
+    name: "CPR / Not Breathing",
+    tag: "Push hard · push fast · don't stop",
+    icon: "❤️",
+    color: "danger",
+    dispatch: "They are unresponsive and not breathing normally — this is a cardiac arrest and I am doing chest compressions.",
+    reassure: "This is the one where your hands matter most. Hands-only CPR keeps blood moving to the brain until a defibrillator or EMS arrives. You can't make a non-breathing person worse.",
+    doNow: [
+      "Shout and tap them hard. No response? Send someone to call 911 on speaker and find an AED (defibrillator).",
+      "Look for normal breathing for no more than 10 seconds. Occasional gasping is NOT breathing.",
+      "Start compressions now: heel of one hand in the center of the chest, other hand on top, push HARD and FAST — about 2 inches deep, 100–120 per minute. Let the chest spring all the way back up each time.",
+      "Don't stop. Keep going until they wake, start breathing, or someone takes over. Use the pacer below to hold the beat.",
+      "When an AED arrives, switch it on and do exactly what it says — it won't shock unless it's needed.",
+      "If you're trained and willing, add 2 breaths after every 30 compressions. If not, hands-only is fine and effective."
+    ],
+    doNot: [
+      "Don't stop compressions for more than a few seconds.",
+      "Don't worry about pushing too hard — shallow compressions don't work.",
+      "Don't wait to 'be sure.' If they're unresponsive and not breathing normally, start.",
+      "Don't stop to feel for a pulse — that wastes time."
+    ],
+    watchFor: "If they start moving, breathing, or push you away, stop and roll them onto their side. Keep watching their breathing — they can stop again.",
+    tools: [
+      { type:"metro", label:"Compression pacer", bpm:110 }
+    ]
+  },
+
+  drowning: {
+    name: "Drowning / Water",
+    tag: "Reach or throw — never go in",
+    icon: "🌊",
+    color: "water",
+    dispatch: "This was a near-drowning in the Potomac near Great Falls; they were underwater.",
+    reassure: "The current here kills strong swimmers and would-be rescuers every year. Reach or throw — do not enter the water. For drowning, getting air in matters, so give rescue breaths if you can.",
+    doNow: [
+      "Do NOT jump in. The Great Falls current is deadly. Reach with a pole or branch, or throw a rope, life ring, or anything that floats.",
+      "Once they're out and on solid ground, if they're unresponsive and not breathing normally, start CPR immediately — and give rescue breaths if you're able, since drowning is an air problem.",
+      "If they're breathing, roll them onto their side, keep them warm, and watch their breathing nonstop.",
+      "Get them off the cold rocks and out of the wind. Remove wet clothing if you can and cover them.",
+      "Anyone who was underwater needs a hospital check even if they seem fine — lung trouble can show up hours later."
+    ],
+    doNot: [
+      "Don't enter the water to attempt a rescue. Throw or reach.",
+      "Don't waste time trying to 'push water out' of the lungs — go straight to CPR if they're not breathing.",
+      "Don't assume they're okay just because they're awake and talking — get them evaluated."
+    ],
+    watchFor: "In the hours afterward: trouble breathing, a cough that won't quit, chest pain, or confusion. Any of these = emergency care now.",
+    tools: [
+      { type:"metro", label:"Compression pacer", bpm:110 }
+    ]
+  }
+};
+
+/* color tokens per theme (bg band, chip, accents, ring) */
+const COLORS = {
+  danger: { band:"bg-red-600",    chip:"bg-red-500/15 text-red-300",    ring:"ring-red-500/40",    bar:"#dc2626" },
+  amber:  { band:"bg-amber-500",  chip:"bg-amber-400/15 text-amber-300",ring:"ring-amber-400/40",  bar:"#f59e0b" },
+  go:     { band:"bg-emerald-600",chip:"bg-emerald-500/15 text-emerald-300",ring:"ring-emerald-500/40",bar:"#16a34a" },
+  water:  { band:"bg-sky-600",    chip:"bg-sky-500/15 text-sky-300",    ring:"ring-sky-500/40",    bar:"#0ea5e9" },
+  bone:   { band:"bg-violet-600", chip:"bg-violet-500/15 text-violet-300",ring:"ring-violet-500/40",bar:"#8b5cf6" }
+};
+
+/* order shown in the grid (requested four first, then the two highest-stakes local additions) */
+const GRID_ORDER = ["heat","snake","bleeding","fracture","cpr","drowning"];
+
+/* ---------- 2. APP STATE (in memory only) -------------------------- */
+const state = {
+  view: "home",
+  selected: null,
+  coords: null,            // {lat, lon, acc}
+  gpsStatus: "idle",       // idle | locating | ok | error
+  patient: { age:"adult", sex:"male", level:"confused" },
+  location: { label:"Great Falls Park — Virginia side (NPS)", extra:"" }
+};
+
+/* runtime store for field-tool timestamps, keyed by emergency:toolIndex */
+const toolState = {};
+let metro = null; // {ctx, timer}
+
+/* ---------- 3. SCRIPT COMPOSITION ---------------------------------- */
+const AGE_SEX = {
+  "adult|male":"an adult male", "adult|female":"an adult female", "adult|unknown":"an adult",
+  "child|male":"a child (boy)", "child|female":"a child (girl)", "child|unknown":"a child",
+  "senior|male":"an elderly man", "senior|female":"an elderly woman", "senior|unknown":"an elderly person"
+};
+const LEVEL = {
+  alert:"awake and alert",
+  confused:"awake but confused",
+  drowsy:"drowsy and hard to wake",
+  unresponsive:"unresponsive",
+  notbreathing:"unresponsive and not breathing normally"
+};
+
+function composeScript(){
+  const e = EMERGENCIES[state.selected];
+  if(!e) return "";
+  const who = AGE_SEX[state.patient.age + "|" + state.patient.sex] || "a person";
+  const lvl = LEVEL[state.patient.level] || "conscious";
+
+  let loc = "I'm at " + state.location.label + ".";
+  if(state.location.extra.trim()) loc += " Nearest marker: " + state.location.extra.trim() + ".";
+
+  let gps;
+  if(state.coords){
+    gps = "My GPS coordinates are " + state.coords.lat.toFixed(5) + ", " + state.coords.lon.toFixed(5) + ".";
+  } else {
+    gps = "I don't have GPS yet — use the landmark above as my location.";
+  }
+
+  const urgent = (state.patient.level === "notbreathing" || state.selected === "cpr");
+  const closer = urgent
+    ? "Please send help immediately. I am starting CPR — stay on the line and talk me through it."
+    : "Please send help as fast as you can. What should I do until you arrive?";
+
+  return [
+    "Nine-one-one, I have a medical emergency.",
+    "",
+    "LOCATION: " + loc + " " + gps,
+    "",
+    "PATIENT: I have " + who + " who is " + lvl + ". " + e.dispatch,
+    "",
+    closer
+  ].join("\n");
+}
+
+/* ---------- 4. RENDERING ------------------------------------------- */
+const $ = (s)=>document.querySelector(s);
+
+function renderGrid(){
+  const grid = $("#grid");
+  grid.innerHTML = GRID_ORDER.map(id=>{
+    const e = EMERGENCIES[id], c = COLORS[e.color];
+    return `
+      <button role="listitem" data-emg="${id}"
+        class="group relative text-left rounded-2xl bg-[#111c2e] border border-[#23324a] p-3.5 min-h-[122px] flex flex-col active:scale-[.98] transition focus:outline-none ${c.ring} focus-visible:ring-4"
+        style="border-left:6px solid ${c.bar}">
+        <span class="grid place-items-center h-11 w-11 rounded-xl ${c.chip} text-2xl mb-2" aria-hidden="true">${e.icon}</span>
+        <span class="font-black ttl uppercase tracking-wide text-[15px] leading-tight">${e.name}</span>
+        ${e.sub ? `<span class="text-[11px] font-bold text-slate-400 -mt-0.5">${e.sub}</span>`:``}
+        <span class="text-[11px] text-slate-400 mt-auto pt-1.5">${e.tag}</span>
+      </button>`;
+  }).join("");
+  grid.querySelectorAll("[data-emg]").forEach(b=>{
+    b.addEventListener("click",()=>openDetail(b.dataset.emg));
+  });
+}
+
+function seg(name, value, options){
+  // options: [{v,label}]
+  return `<div class="flex flex-wrap gap-1.5" data-seg="${name}">` +
+    options.map(o=>{
+      const on = (value===o.v);
+      return `<button data-seg-val="${o.v}" type="button"
+        class="rounded-lg px-3 py-2 text-[13px] font-bold tap border transition ${
+          on ? "bg-slate-100 text-slate-900 border-slate-100"
+             : "bg-[#0e1726] text-slate-300 border-[#23324a] active:scale-95"}">${o.label}</button>`;
+    }).join("") + `</div>`;
+}
+
+function renderDetail(){
+  const id = state.selected, e = EMERGENCIES[id], c = COLORS[e.color];
+
+  const doNow = e.doNow.map((s,i)=>`
+    <li class="flex gap-3">
+      <span class="shrink-0 grid place-items-center h-7 w-7 rounded-full bg-emerald-600 text-white font-black text-sm mt-0.5">${i+1}</span>
+      <span class="text-[15px] leading-snug">${s}</span>
+    </li>`).join("");
+
+  const doNot = e.doNot.map(s=>`
+    <li class="flex gap-3 items-start">
+      <span class="shrink-0 grid place-items-center h-6 w-6 rounded-full bg-red-600 text-white font-black mt-0.5" aria-hidden="true">✕</span>
+      <span class="text-[15px] leading-snug">${s}</span>
+    </li>`).join("");
+
+  const tools = (e.tools||[]).map((t,i)=>renderTool(id,t,i)).join("");
+
+  $("#detail").innerHTML = `
+    <div class="view-enter">
+      <!-- back -->
+      <button id="backBtn" class="mt-3 mb-3 inline-flex items-center gap-1.5 text-slate-300 font-bold tap" aria-label="Back to emergency list">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        All emergencies
+      </button>
+
+      <!-- header band -->
+      <div class="rounded-2xl ${c.band} text-white px-4 py-4 shadow-lg">
+        <div class="flex items-center gap-3">
+          <span class="text-3xl" aria-hidden="true">${e.icon}</span>
+          <div class="leading-tight">
+            <h1 class="text-2xl font-black ttl uppercase tracking-wide">${e.name}${e.sub?` <span class="opacity-80 text-lg">· ${e.sub}</span>`:``}</h1>
+            <p class="text-white/90 text-sm font-semibold">${e.tag}</p>
+          </div>
+        </div>
+        <p class="text-white/95 text-[13px] mt-2 leading-snug">${e.reassure}</p>
+      </div>
+
+      <!-- ============ SIGNATURE: DISPATCH SCRIPT MODULE ============ -->
+      <div class="mt-4 rounded-2xl border border-[#2a3a55] bg-[#0e1726] overflow-hidden">
+        <div class="flex items-center justify-between px-4 pt-3.5">
+          <div>
+            <p class="text-[10px] uppercase tracking-[.14em] text-slate-400 font-bold">Read this to 911</p>
+            <p class="text-[11px] text-slate-500">Tap the chips to match the patient. Updates live.</p>
+          </div>
+          <a href="tel:911" class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-2 font-black text-white tap active:scale-95">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.2a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .6 3.6 1 1 0 0 1-.24 1z" fill="currentColor"/></svg>
+            Call
+          </a>
+        </div>
+
+        <!-- the assembled script -->
+        <div class="px-4 pt-3">
+          <pre id="scriptBox" class="mono whitespace-pre-wrap text-[13.5px] leading-relaxed text-emerald-100 bg-[#0a1322] border border-[#23324a] rounded-xl p-3.5"></pre>
+        </div>
+
+        <!-- copy / speak -->
+        <div class="px-4 pt-2.5 flex gap-2">
+          <button id="copyBtn" class="flex-1 rounded-xl bg-slate-100 text-slate-900 font-black py-3 tap active:scale-95">Copy script</button>
+          <button id="speakBtn" class="rounded-xl border border-[#2a3a55] bg-[#111c2e] text-slate-200 font-bold px-4 py-3 tap active:scale-95" aria-label="Read the script aloud">🔊 Speak</button>
+        </div>
+
+        <!-- patient chips -->
+        <div class="px-4 pt-4 space-y-3">
+          <div>
+            <p class="text-[10px] uppercase tracking-wide text-slate-400 font-bold mb-1.5">Who</p>
+            ${seg("age", state.patient.age, [{v:"adult",label:"Adult"},{v:"child",label:"Child"},{v:"senior",label:"Elderly"}])}
+          </div>
+          <div>
+            ${seg("sex", state.patient.sex, [{v:"male",label:"Male"},{v:"female",label:"Female"},{v:"unknown",label:"Unsure"}])}
+          </div>
+          <div>
+            <p class="text-[10px] uppercase tracking-wide text-slate-400 font-bold mb-1.5">How they are</p>
+            ${seg("level", state.patient.level, [
+              {v:"alert",label:"Alert"},{v:"confused",label:"Confused"},{v:"drowsy",label:"Drowsy"},
+              {v:"unresponsive",label:"Unresponsive"},{v:"notbreathing",label:"Not breathing"}])}
+          </div>
+        </div>
+
+        <!-- location -->
+        <div class="px-4 pt-4 pb-2">
+          <p class="text-[10px] uppercase tracking-wide text-slate-400 font-bold mb-1.5">Where</p>
+          <select id="locSelect" class="w-full rounded-xl bg-[#0e1726] border border-[#23324a] text-slate-100 text-[14px] px-3 py-3 tap mb-2">
+            <optgroup label="Virginia side — Great Falls Park (NPS)">
+              <option>Great Falls Park — Virginia side (NPS)</option>
+              <option>Great Falls Park — Visitor Center / Overlooks</option>
+              <option>River Trail (Virginia)</option>
+              <option>Patowmack Canal Trail</option>
+              <option>Difficult Run Trail</option>
+              <option>Matildaville / Ridge Trail</option>
+            </optgroup>
+            <optgroup label="Maryland side — C&O Canal NHP">
+              <option>Great Falls Tavern Visitor Center (Maryland)</option>
+              <option>Billy Goat Trail — Section A</option>
+              <option>Billy Goat Trail — Section B</option>
+              <option>Billy Goat Trail — Section C</option>
+              <option>Olmsted Island / Great Falls Overlook (Maryland)</option>
+              <option>Gold Mine Loop / Berma Road</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option>Somewhere else on the Potomac trails</option>
+            </optgroup>
+          </select>
+          <input id="locExtra" type="text" inputmode="text" placeholder="Nearest trail marker, mile, or feature (optional)"
+            class="w-full rounded-xl bg-[#0e1726] border border-[#23324a] text-slate-100 text-[14px] px-3 py-3 tap" />
+
+          <!-- GPS readout -->
+          <div class="mt-2 flex items-center justify-between rounded-xl bg-[#0a1322] border border-[#23324a] px-3 py-2.5">
+            <div class="flex items-center gap-2 min-w-0">
+              <span id="gpsDot2"><span class="inline-block h-2.5 w-2.5 rounded-full bg-slate-500"></span></span>
+              <span id="gpsReadout" class="mono text-[12px] text-slate-300 truncate">GPS not captured yet</span>
+            </div>
+            <button id="gpsBtn2" class="shrink-0 text-[12px] font-bold text-sky-300 underline tap">Get GPS</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ DO NOW ============ -->
+      <div class="mt-4 rounded-2xl border border-emerald-700/40 bg-emerald-950/20 p-4">
+        <h2 class="flex items-center gap-2 text-emerald-300 font-black ttl uppercase tracking-wide text-sm mb-3">
+          <span class="grid place-items-center h-6 w-6 rounded-md bg-emerald-600 text-white">✓</span> Do this now — in order
+        </h2>
+        <ol class="space-y-3.5">${doNow}</ol>
+      </div>
+
+      <!-- ============ DO NOT ============ -->
+      <div class="mt-4 rounded-2xl border border-red-700/50 bg-red-950/25 p-4">
+        <h2 class="flex items-center gap-2 text-red-300 font-black ttl uppercase tracking-wide text-sm mb-3">
+          <span class="grid place-items-center h-6 w-6 rounded-md bg-red-600 text-white">!</span> Do not
+        </h2>
+        <ul class="space-y-3">${doNot}</ul>
+      </div>
+
+      <!-- ============ WATCH FOR ============ -->
+      <div class="mt-4 rounded-2xl border border-amber-600/50 bg-amber-950/20 p-4">
+        <h2 class="flex items-center gap-2 text-amber-300 font-black ttl uppercase tracking-wide text-sm mb-2">
+          <span aria-hidden="true">⚠️</span> Watch for — call back if it happens
+        </h2>
+        <p class="text-[15px] leading-snug text-amber-50">${e.watchFor}</p>
+      </div>
+
+      <!-- ============ FIELD TOOLS ============ -->
+      ${tools ? `<div class="mt-4 space-y-3">${tools}</div>` : ``}
+
+      <!-- bottom call to action -->
+      <a href="tel:911" class="mt-5 flex items-center justify-center gap-2 rounded-2xl bg-red-600 text-white font-black text-lg py-4 shadow-lg active:scale-[.98] tap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.6 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.2a1 1 0 0 1 1 1 11.4 11.4 0 0 0 .6 3.6 1 1 0 0 1-.24 1z" fill="currentColor"/></svg>
+        Call 911
+      </a>
+    </div>`;
+
+  wireDetail();
+  refreshScript();
+  refreshGpsUI();
+}
+
+/* field tools: timestamp stamp, multi-mark log, CPR pacer */
+function renderTool(id,t,i){
+  const key = id+":"+i;
+  if(t.type==="metro"){
+    return `
+      <div class="rounded-2xl border border-[#2a3a55] bg-[#0e1726] p-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-black ttl uppercase tracking-wide text-sm text-slate-100">${t.label}</p>
+            <p class="text-[11px] text-slate-400">Push to the beat — ${t.bpm} per minute, about 2 inches deep.</p>
+          </div>
+          <div id="metroDot" class="h-12 w-12 rounded-full bg-[#3a1010] grid place-items-center text-white font-black">●</div>
+        </div>
+        <button id="metroBtn" data-bpm="${t.bpm}" class="mt-3 w-full rounded-xl bg-red-600 text-white font-black py-3.5 tap active:scale-95">Start pacer</button>
+      </div>`;
+  }
+  if(t.type==="log"){
+    return `
+      <div class="rounded-2xl border border-[#2a3a55] bg-[#0e1726] p-4">
+        <p class="font-black ttl uppercase tracking-wide text-sm text-slate-100">${t.label}</p>
+        <p class="text-[11px] text-slate-400 mb-2">Tap each time you mark the edge of the swelling.</p>
+        <button data-tool="log" data-key="${key}" class="w-full rounded-xl bg-slate-100 text-slate-900 font-black py-3 tap active:scale-95">Mark now</button>
+        <ul id="logList-${key.replace(':','-')}" class="mono text-[12px] text-slate-300 mt-2 space-y-1"></ul>
+      </div>`;
+  }
+  // stamp
+  const accent = t.warn ? "bg-red-600 text-white" : "bg-slate-100 text-slate-900";
+  return `
+    <div class="rounded-2xl border border-[#2a3a55] bg-[#0e1726] p-4">
+      <p class="font-black ttl uppercase tracking-wide text-sm text-slate-100">${t.label}</p>
+      <p class="text-[11px] text-slate-400 mb-2">EMS will ask for this time. Tap when it's done.</p>
+      <button data-tool="stamp" data-key="${key}" class="w-full rounded-xl ${accent} font-black py-3 tap active:scale-95">Stamp the time</button>
+      <p id="stamp-${key.replace(':','-')}" class="mono text-[13px] text-slate-200 mt-2"></p>
+    </div>`;
+}
+
+/* ---------- 5. EVENT WIRING ---------------------------------------- */
+function wireDetail(){
+  $("#backBtn").addEventListener("click", goHome);
+
+  // segmented controls
+  $("#detail").querySelectorAll("[data-seg]").forEach(group=>{
+    const name = group.dataset.seg;
+    group.querySelectorAll("[data-seg-val]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        state.patient[name] = btn.dataset.segVal;
+        // restyle siblings
+        group.querySelectorAll("[data-seg-val]").forEach(b=>{
+          const on = b===btn;
+          b.className = "rounded-lg px-3 py-2 text-[13px] font-bold tap border transition " +
+            (on ? "bg-slate-100 text-slate-900 border-slate-100"
+                : "bg-[#0e1726] text-slate-300 border-[#23324a] active:scale-95");
+        });
+        refreshScript();
+      });
+    });
+  });
+
+  // location
+  const sel = $("#locSelect");
+  sel.value = state.location.label;
+  if(sel.selectedIndex < 0) sel.selectedIndex = 0;
+  sel.addEventListener("change",()=>{ state.location.label = sel.value; refreshScript(); });
+  const ex = $("#locExtra");
+  ex.value = state.location.extra;
+  ex.addEventListener("input",()=>{ state.location.extra = ex.value; refreshScript(); });
+
+  // copy / speak
+  $("#copyBtn").addEventListener("click", copyScript);
+  $("#speakBtn").addEventListener("click", speakScript);
+
+  // gps
+  $("#gpsBtn2").addEventListener("click", locate);
+
+  // tools
+  $("#detail").querySelectorAll("[data-tool='stamp']").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const key=b.dataset.key; toolState[key]={t:Date.now(), kind:"stamp"};
+      paintStamp(key);
+    });
+  });
+  $("#detail").querySelectorAll("[data-tool='log']").forEach(b=>{
+    b.addEventListener("click",()=>{
+      const key=b.dataset.key;
+      (toolState[key] = toolState[key] || {kind:"log", times:[]}).times.push(Date.now());
+      paintLog(key);
+    });
+  });
+  const metroBtn = $("#metroBtn");
+  if(metroBtn) metroBtn.addEventListener("click",()=>toggleMetro(metroBtn, +metroBtn.dataset.bpm));
+
+  // repaint any tool state from earlier this session
+  Object.keys(toolState).forEach(key=>{
+    if(toolState[key].kind==="stamp" && key.startsWith(state.selected+":")) paintStamp(key);
+    if(toolState[key].kind==="log" && key.startsWith(state.selected+":")) paintLog(key);
+  });
+}
+
+function paintStamp(key){
+  const el = document.getElementById("stamp-"+key.replace(':','-'));
+  if(el && toolState[key]) el.dataset.since = toolState[key].t, updateElapsed();
+}
+function paintLog(key){
+  const ul = document.getElementById("logList-"+key.replace(':','-'));
+  if(!ul || !toolState[key]) return;
+  ul.innerHTML = toolState[key].times.map((t,i)=>{
+    return `<li>#${i+1} · <span data-since="${t}" class="js-elapsed">${clock(t)}</span></li>`;
+  }).join("");
+  updateElapsed();
+}
+
+/* ---------- 6. SCRIPT HELPERS -------------------------------------- */
+function refreshScript(){
+  const box = $("#scriptBox");
+  if(box) box.textContent = composeScript();
+}
+function copyScript(){
+  const text = composeScript();
+  const done = ()=>toast("Script copied");
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  } else fallbackCopy(text,done);
+}
+function fallbackCopy(text,done){
+  const ta=document.createElement("textarea");
+  ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand("copy"); done(); }catch(e){ toast("Couldn't copy — read it aloud"); }
+  document.body.removeChild(ta);
+}
+let speaking=false;
+function speakScript(){
+  if(!("speechSynthesis" in window)){ toast("Speech not available"); return; }
+  if(speaking){ speechSynthesis.cancel(); speaking=false; return; }
+  const u=new SpeechSynthesisUtterance(composeScript().replace(/\n+/g," "));
+  u.rate=0.95; u.onend=()=>speaking=false;
+  speechSynthesis.cancel(); speechSynthesis.speak(u); speaking=true;
+  toast("Speaking…");
+}
+
+/* ---------- 7. GEOLOCATION (works without cell signal) ------------- */
+function locate(){
+  if(!("geolocation" in navigator)){ state.gpsStatus="error"; refreshGpsUI("No GPS on this device"); return; }
+  state.gpsStatus="locating"; refreshGpsUI();
+  navigator.geolocation.getCurrentPosition(
+    (pos)=>{
+      state.coords={ lat:pos.coords.latitude, lon:pos.coords.longitude, acc:pos.coords.accuracy };
+      state.gpsStatus="ok"; refreshGpsUI(); refreshScript(); toast("GPS captured");
+    },
+    (err)=>{
+      state.gpsStatus="error";
+      const msg = err.code===1 ? "Location blocked — allow it in settings"
+                : err.code===3 ? "GPS timed out — try again with sky view"
+                : "GPS unavailable — use the landmark";
+      refreshGpsUI(msg);
+    },
+    { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
+  );
+}
+function refreshGpsUI(errMsg){
+  const ok = state.gpsStatus==="ok";
+  const locating = state.gpsStatus==="locating";
+  const dotHTML = ok ? `<span class="pulse-dot"></span>`
+                : locating ? `<span class="inline-block h-2.5 w-2.5 rounded-full bg-amber-400"></span>`
+                : `<span class="inline-block h-2.5 w-2.5 rounded-full bg-slate-500"></span>`;
+  // top chip
+  const dw=$("#gpsDotWrap"), ct=$("#gpsChipText");
+  if(dw) dw.innerHTML=dotHTML;
+  if(ct) ct.textContent = ok ? (state.coords.lat.toFixed(4)+", "+state.coords.lon.toFixed(4))
+                        : locating ? "Locating…" : "Tap for GPS";
+  // detail readout
+  const d2=$("#gpsDot2"), ro=$("#gpsReadout");
+  if(d2) d2.innerHTML=dotHTML;
+  if(ro){
+    ro.textContent = ok
+      ? (state.coords.lat.toFixed(5)+", "+state.coords.lon.toFixed(5)+"  (±"+Math.round(state.coords.acc)+"m)")
+      : locating ? "Locating… hold still with a view of the sky"
+      : (errMsg || "GPS not captured yet");
+  }
+}
+
+/* ---------- 8. CPR METRONOME (Web Audio, offline) ------------------ */
+function toggleMetro(btn,bpm){
+  const dot=$("#metroDot");
+  if(metro){ stopMetro(btn,dot); return; }
+  let ctx;
+  try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ ctx=null; }
+  const interval = 60000/bpm;
+  const tick=()=>{
+    if(ctx){
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.frequency.value=880; o.connect(g); g.connect(ctx.destination);
+      const t=ctx.currentTime; g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.4,t+0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.09);
+      o.start(t); o.stop(t+0.1);
+    }
+    if(dot){ dot.classList.remove("beat"); void dot.offsetWidth; dot.classList.add("beat"); }
+  };
+  tick();
+  metro={ ctx, timer:setInterval(tick, interval) };
+  btn.textContent="Stop pacer"; btn.classList.add("metro-on");
+  if(dot) dot.classList.add("beat");
+}
+function stopMetro(btn,dot){
+  if(metro){ clearInterval(metro.timer); if(metro.ctx&&metro.ctx.close) metro.ctx.close(); metro=null; }
+  if(btn){ btn.textContent="Start pacer"; btn.classList.remove("metro-on"); }
+  if(dot) dot.classList.remove("beat");
+}
+
+/* ---------- 9. VIEW SWITCHING -------------------------------------- */
+function openDetail(id){
+  state.selected=id; state.view="detail";
+  $("#home").classList.add("hidden");
+  $("#detail").classList.remove("hidden");
+  renderDetail();
+  window.scrollTo({top:0,behavior:"instant"in window?"instant":"auto"});
+}
+function goHome(){
+  // stop any running pacer when leaving
+  stopMetro($("#metroBtn"), $("#metroDot"));
+  if(speaking){ speechSynthesis.cancel(); speaking=false; }
+  state.view="home"; state.selected=null;
+  $("#detail").classList.add("hidden");
+  $("#detail").innerHTML="";
+  $("#home").classList.remove("hidden");
+  window.scrollTo({top:0,behavior:"auto"});
+}
+
+/* ---------- 10. TIME HELPERS + TOAST ------------------------------- */
+function clock(ts){
+  const d=new Date(ts);
+  return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+function ago(ts){
+  const s=Math.floor((Date.now()-ts)/1000);
+  const m=Math.floor(s/60), r=s%60;
+  return m>0 ? `${m}m ${r}s ago` : `${r}s ago`;
+}
+function updateElapsed(){
+  document.querySelectorAll("[data-since]").forEach(el=>{
+    const ts=+el.dataset.since;
+    if(el.id && el.id.startsWith("stamp-")){
+      el.innerHTML = `✅ ${clock(ts)} &middot; <span class="text-slate-400">${ago(ts)}</span>`;
+    } else if(el.classList.contains("js-elapsed")){
+      el.textContent = `${clock(ts)} (${ago(ts)})`;
+    }
+  });
+}
+setInterval(updateElapsed, 1000);
+
+let toastTimer=null;
+function toast(msg){
+  const box=$("#toast"); box.querySelector("div").textContent=msg;
+  box.classList.remove("hidden");
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>box.classList.add("hidden"), 2200);
+}
+
+/* ---------- 11. BOOT ----------------------------------------------- */
+$("#brand").addEventListener("click", goHome);
+$("#gpsChip").addEventListener("click", locate);
+renderGrid();
+
+// Register the service worker for true offline use — only when actually
+// served over http(s). Skipped when opened as a file or inside a sandbox,
+// so it never throws in those contexts.
+if("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{ /* offline cache simply unavailable */ });
+  });
+}
+</script>
+</body>
+</html>
